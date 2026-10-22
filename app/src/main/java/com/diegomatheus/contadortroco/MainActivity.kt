@@ -128,6 +128,16 @@ class MainActivity : ComponentActivity() {
                         ))).also { if (it) message("Troca salva.") }
                     },
                     onDelete = { id -> if (save(data.copy(exchanges = data.exchanges.filterNot { it.id == id }))) message("Troca excluída.") },
+                    onEditExchange = { id, name, date, cents, note ->
+                        if (!TrocoRules.isValidName(name) || !TrocoRules.isValidDirectTotal(cents, note)) false
+                        else save(data.copy(exchanges = data.exchanges.map { old ->
+                            if (old.id == id) old.copy(
+                                name = name.trim().replace(Regex("\\s+"), " "),
+                                date = date.toString(), notes5 = 0, notes10 = 0,
+                                enteredTotalCents = cents, noteHint = note
+                            ) else old
+                        })).also { if (it) message("Registro atualizado.") }
+                    },
                     onAddGift = { name ->
                         val clean = name.trim().replace(Regex("\\s+"), " ")
                         if (clean.isNotBlank() && clean.length <= 80 &&
@@ -182,6 +192,7 @@ private fun TrocoScreen(
     activeMonth: YearMonth,
     onRegister: (String, LocalDate, Long, Int) -> Boolean,
     onDelete: (String) -> Unit,
+    onEditExchange: (String, String, LocalDate, Long, Int) -> Boolean,
     onAddGift: (String) -> Boolean,
     onEditGift: (String, String) -> Boolean,
     onDeleteGift: (String) -> Boolean,
@@ -285,7 +296,13 @@ private fun TrocoScreen(
                     item { RegisterForm(data.exchanges, month, onRegister) }
                     item { Section("Trocas cadastradas", "NO MÊS SELECIONADO") }
                     if (exchanges.isEmpty()) item { Empty("Nenhuma troca neste mês.") }
-                    items(exchanges, key = { it.id }) { entry -> EntryCard(entry, { onDelete(entry.id) }) }
+                    items(exchanges, key = { it.id }) { entry ->
+                        val key = TrocoRules.personKey(entry.name)
+                        val hasAward = data.awards.any { it.month == entry.date.take(7) && it.personKey == key }
+                        EntryCard(entry, onDelete = { onDelete(entry.id) },
+                            onEdit = { name, date, cents, note -> onEditExchange(entry.id, name, date, cents, note) },
+                            hasAward = hasAward)
+                    }
                 }
                 "ranking" -> {
                     item { Section("Ranking mensal", "QUEM TROCOU MAIS") }
@@ -544,8 +561,22 @@ private fun RegisterForm(existing: List<Exchange>, month: YearMonth,
 }
 
 @Composable
-private fun EntryCard(exchange: Exchange, onDelete: (() -> Unit)? = null) {
+private fun EntryCard(
+    exchange: Exchange,
+    onDelete: (() -> Unit)? = null,
+    onEdit: ((String, LocalDate, Long, Int) -> Boolean)? = null,
+    hasAward: Boolean = false
+) {
     var confirming by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf(false) }
+    var name by remember(exchange.id, editing) { mutableStateOf(exchange.name) }
+    var dateText by remember(exchange.id, editing) { mutableStateOf(exchange.date) }
+    var amount by remember(exchange.id, editing) {
+        mutableStateOf(java.math.BigDecimal.valueOf(exchange.totalCents, 2).toPlainString().replace(".", ","))
+    }
+    var noteHint by remember(exchange.id, editing) { mutableIntStateOf(exchange.noteHint) }
+    var error by remember { mutableStateOf("") }
+    val context = LocalContext.current
     AppCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -559,16 +590,83 @@ private fun EntryCard(exchange: Exchange, onDelete: (() -> Unit)? = null) {
             Spacer(Modifier.width(8.dp))
             Text(reais(exchange.totalCents), fontWeight = FontWeight.ExtraBold, color = Green)
         }
-        if (onDelete != null) {
-            TextButton(onClick = { confirming = true }, modifier = Modifier.align(Alignment.End)) {
-                Text("Excluir lançamento")
+        if (onEdit != null || onDelete != null) {
+            Row(modifier = Modifier.align(Alignment.End)) {
+                if (onEdit != null) TextButton(onClick = { error = ""; editing = true }) { Text("Editar") }
+                if (onDelete != null) TextButton(onClick = { confirming = true }) { Text("Excluir") }
             }
         }
+    }
+    if (editing) {
+        val parsedDate = runCatching { LocalDate.parse(dateText) }.getOrNull()
+        val cents = amount.replace(",", ".").toBigDecimalOrNull()
+            ?.takeIf { it.scale() <= 2 }
+            ?.movePointRight(2)?.let { runCatching { it.longValueExact() }.getOrNull() }
+        AlertDialog(
+            onDismissRequest = { editing = false },
+            title = { Text("Editar troca") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    if (hasAward) Banner(
+                        "A pessoa já teve um presente sorteado neste mês. A alteração recalcula o ranking, mas não exclui o sorteio anterior.",
+                        warning = true
+                    )
+                    OutlinedTextField(
+                        value = name, onValueChange = { if (it.length <= 80) name = it },
+                        label = { Text("Nome da pessoa") }, singleLine = true
+                    )
+                    OutlinedButton(onClick = {
+                        val current = parsedDate ?: LocalDate.now()
+                        DatePickerDialog(context, { _, y, m, d ->
+                            dateText = LocalDate.of(y, m + 1, d).toString()
+                        }, current.year, current.monthValue - 1, current.dayOfMonth).show()
+                    }) {
+                        Text("Data: ${parsedDate?.format(dateFormat) ?: "Selecionar"}")
+                    }
+                    OutlinedTextField(
+                        value = amount,
+                        onValueChange = { v ->
+                            if (v.length <= 12 && v.all { it.isDigit() || it == ',' || it == '.' }) amount = v
+                        },
+                        label = { Text("Valor total (R$)") }, singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                    )
+                    Text("Tipo de nota (opcional)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        listOf(0 to "Nenhum", 5 to "R$ 5", 10 to "R$ 10").forEach { (n, label) ->
+                            if (noteHint == n) Button(
+                                onClick = { noteHint = n },
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 2.dp)
+                            ) { Text(label, fontSize = 11.sp) }
+                            else OutlinedButton(
+                                onClick = { noteHint = n },
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 2.dp)
+                            ) { Text(label, fontSize = 11.sp) }
+                        }
+                    }
+                    if (error.isNotEmpty()) Text(error, color = Color(0xFFA3312B), fontSize = 12.sp)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (!TrocoRules.isValidName(name) || parsedDate == null || cents == null ||
+                        !TrocoRules.isValidDirectTotal(cents, noteHint)) {
+                        error = "Informe nome, data e valor total válido."
+                    } else if (onEdit?.invoke(name, parsedDate, cents, noteHint) == true) editing = false
+                }) { Text("Salvar alterações") }
+            },
+            dismissButton = { TextButton(onClick = { editing = false }) { Text("Cancelar") } }
+        )
     }
     if (confirming) AlertDialog(
         onDismissRequest = { confirming = false },
         title = { Text("Excluir troca?") },
-        text = { Text("Esta troca será excluída. Sorteios já realizados serão preservados.") },
+        text = { Text(
+            if (hasAward) "Esta pessoa já teve um presente sorteado neste mês. O lançamento será excluído, mas o sorteio anterior continuará no histórico."
+            else "Esta troca será excluída. Sorteios já realizados serão preservados."
+        ) },
         confirmButton = { TextButton(onClick = { confirming = false; onDelete?.invoke() }) { Text("Excluir") } },
         dismissButton = { TextButton(onClick = { confirming = false }) { Text("Cancelar") } }
     )
