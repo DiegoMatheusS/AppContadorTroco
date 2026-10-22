@@ -14,6 +14,8 @@ App Android **nativo** em Kotlin + Jetpack Compose para controlar pessoas que tr
 - Presentes iniciais: caixa de bombom, trufa, bolo de pote, desodorante, kit sabonete e escova de dente. Cadastro, edição e exclusão.
 - Backup JSON exportável e importável pelas ferramentas de arquivos do Android.
 
+- Na aba **Registrar**, use **Editar** para corrigir nome, data, valor total e tipo de nota. O ranking recalcula automaticamente. Se houve sorteio, um aviso aparece e o sorteio antigo é preservado. A exclusão segue disponível com confirmação.
+
 ## Executar
 1. Abra o repositório no **Android Studio**.
 2. Sincronize o Gradle (JDK 17 ou superior, SDK Android 36). Versão alvo Gradle 8.14.3.
