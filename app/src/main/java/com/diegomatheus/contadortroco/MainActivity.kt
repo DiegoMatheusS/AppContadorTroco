@@ -459,6 +459,7 @@ private fun RegisterForm(existing: List<Exchange>, month: YearMonth,
     var dateText by rememberSaveable(month.toString()) { mutableStateOf(suggestedDate.toString()) }
     var notes5 by rememberSaveable { mutableStateOf("") }
     var notes10 by rememberSaveable { mutableStateOf("") }
+    var selectedNote by rememberSaveable { mutableIntStateOf(10) }
     var error by remember { mutableStateOf("") }
     val date = LocalDate.parse(dateText)
     val context = LocalContext.current
@@ -492,20 +493,41 @@ private fun RegisterForm(existing: List<Exchange>, month: YearMonth,
             }, date.year, date.monthValue - 1, date.dayOfMonth).show()
         }) { Text("Data: ${date.format(dateFormat)} ▾") }
         Spacer(Modifier.height(12.dp))
+        Text("Valor da nota", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedTextField(
-                value = notes5, onValueChange = { if (it.length <= 7 && it.all(Char::isDigit)) notes5 = it },
-                label = { Text("Notas de R$ 5") }, placeholder = { Text("0") }, singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.weight(1f)
-            )
-            OutlinedTextField(
-                value = notes10, onValueChange = { if (it.length <= 7 && it.all(Char::isDigit)) notes10 = it },
-                label = { Text("Notas de R$ 10") }, placeholder = { Text("0") }, singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.weight(1f)
-            )
+            listOf(5, 10).forEach { note ->
+                val active = selectedNote == note
+                if (active) {
+                    Button(
+                        onClick = { selectedNote = note },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text("R$ $note", fontWeight = FontWeight.Bold) }
+                } else {
+                    OutlinedButton(
+                        onClick = { selectedNote = note },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text("R$ $note", fontWeight = FontWeight.Bold) }
+                }
+            }
         }
+        Spacer(Modifier.height(10.dp))
+        OutlinedTextField(
+            value = if (selectedNote == 5) notes5 else notes10,
+            onValueChange = { value ->
+                if (value.length <= 7 && value.all(Char::isDigit)) {
+                    if (selectedNote == 5) notes5 = value else notes10 = value
+                }
+            },
+            label = { Text("Quantidade de notas") },
+            placeholder = { Text("Digite a quantidade") },
+            supportingText = { Text("Toque em R$ 5 ou R$ 10 para alternar. As quantidades dos dois tipos são guardadas.") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth()
+        )
         Spacer(Modifier.height(12.dp))
         Surface(color = Mint, shape = RoundedCornerShape(12.dp)) {
             Column(Modifier.fillMaxWidth().padding(15.dp)) {
@@ -526,7 +548,7 @@ private fun RegisterForm(existing: List<Exchange>, month: YearMonth,
                 "Informe nome e quantidades válidas. Pelo menos uma nota deve ser registrada."
             else ""
             if (error.isEmpty() && onRegister(name, date, five, ten)) {
-                name = ""; notes5 = ""; notes10 = ""; dateText = suggestedDate.toString()
+                name = ""; notes5 = ""; notes10 = ""; selectedNote = 10; dateText = suggestedDate.toString()
             }
         }, modifier = Modifier.fillMaxWidth()) { Text("+ Salvar troca") }
     }
