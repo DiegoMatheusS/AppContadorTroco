@@ -10,10 +10,28 @@ android {
         applicationId = "com.diegomatheus.contadortroco"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        // Cresce a cada GitHub Actions run; nunca reduzir entre atualizacoes assinadas.
+        versionCode = (System.getenv("APP_VERSION_CODE")?.toIntOrNull() ?: 2).coerceAtLeast(2)
+        versionName = "1.1"
     }
-    buildTypes { release { isMinifyEnabled = false } }
+    signingConfigs {
+        if (!System.getenv("ANDROID_KEYSTORE_PATH").isNullOrBlank()) {
+            create("permanentRelease") {
+                storeFile = file(System.getenv("ANDROID_KEYSTORE_PATH"))
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            if (signingConfigs.findByName("permanentRelease") != null) {
+                signingConfig = signingConfigs.getByName("permanentRelease")
+            }
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
