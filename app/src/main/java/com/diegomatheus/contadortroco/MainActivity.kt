@@ -725,6 +725,7 @@ private fun DrawCard(person: PersonRank?, award: Award?, gifts: List<Gift>,
     // A contagem acontece ANTES de registrar o sorteio. A gravacao so ocorre ao revelar.
     var countdown by remember(person?.key, award?.month) { mutableIntStateOf(0) }
     var celebrating by remember(person?.key, award?.month) { mutableStateOf(false) }
+    var confettiFrame by remember(person?.key, award?.month) { mutableIntStateOf(0) }
     LaunchedEffect(countdown > 0) {
         if (countdown > 0) {
             for (number in 3 downTo 1) {
@@ -737,7 +738,11 @@ private fun DrawCard(person: PersonRank?, award: Award?, gifts: List<Gift>,
     }
     LaunchedEffect(celebrating) {
         if (celebrating) {
-            delay(3500L)
+            confettiFrame = 0
+            repeat(16) {
+                delay(190L)
+                confettiFrame += 1
+            }
             celebrating = false
         }
     }
@@ -769,7 +774,7 @@ private fun DrawCard(person: PersonRank?, award: Award?, gifts: List<Gift>,
                 if (countdown > 0) Text("Preparando o sorteio…", fontSize = 13.sp, color = BodyGray)
                 if (celebrating && award != null) {
                     Spacer(Modifier.height(10.dp))
-                    Text("🎊 ✨ 🎉 🎊 ✨ 🎉 🎊", fontSize = 22.sp,
+                    Text(if (confettiFrame % 2 == 0) "🎊 ✨ 🎉 🎊 ✨ 🎉 🎊" else "✨ 🎉 🎊 ✨ 🎊 🎉 ✨", fontSize = 22.sp,
                         textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                     Text("Parabéns! Presente sorteado!", color = Green, fontWeight = FontWeight.Bold)
                 }
