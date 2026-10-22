@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
         android:label="Contador de Trocas"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@drawable/troco_logo"
         android:theme="@style/Theme.ContadorTroco"
         android:allowBackup="false"
         android:supportsRtl="true">
