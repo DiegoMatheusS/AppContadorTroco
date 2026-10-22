@@ -24,3 +24,15 @@ App Android **nativo** em Kotlin + Jetpack Compose para controlar pessoas que tr
 No GitHub, o workflow **Android CI** faz testes e tenta gerar o APK em **Actions → Android CI → Artifacts → ContadorTroco-debug-apk**. Ele ficará disponível se o build passar. Não é necessário Railway.
 
 Os registros são **locais**, sem login nem sincronização entre aparelhos. Exporte backups com frequência. O backup inclui nomes e valores, não o publique em repositórios públicos.
+
+## Assinatura permanente e atualizacoes
+- APKs **debug** do GitHub Actions usam chaves temporarias do runner e podem ter assinatura diferente a cada compilacao.
+- Para distribuir APKs atualizaveis, use uma unica chave privada de assinatura `.jks` guardada **fora** deste repositorio e cadastre no GitHub Actions (Settings -> Secrets and variables -> Actions) os quatro secrets:
+  - `ANDROID_KEYSTORE_BASE64`: conteudo base64 do arquivo keystore
+  - `ANDROID_KEYSTORE_PASSWORD`: senha do keystore
+  - `ANDROID_KEY_ALIAS`: nome/alias da chave
+  - `ANDROID_KEY_PASSWORD`: senha da chave privada
+- Depois, em cada push para `main`, o workflow gera o artifact **ContadorTroco-assinado-release-apk**, com o mesmo applicationId, assinatura fixa e versionCode crescente.
+- Sem secrets, o workflow continua compilando somente o APK de debug. A chave **nunca** e colocada no codigo-fonte ou em comentarios de PR.
+- Quem instalou um APK debug com assinatura diferente precisara **exportar backup JSON, desinstalar a versao antiga, instalar a release assinada e restaurar JSON uma unica vez**. A partir dai, a atualizacao e por cima, sem remover o app.
+- **Guarde a chave .jks e senhas em dois locais privados e confiaveis; perder a chave impede novas atualizacoes assinadas com ela.**
