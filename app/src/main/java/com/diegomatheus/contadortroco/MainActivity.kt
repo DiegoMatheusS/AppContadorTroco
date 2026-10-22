@@ -722,48 +722,80 @@ private fun AwardCard(award: Award, onDelivery: () -> Boolean) {
 @Composable
 private fun DrawCard(person: PersonRank?, award: Award?, gifts: List<Gift>,
                      onDraw: () -> Boolean, onDelivery: () -> Boolean) {
-    var concealed by remember(person?.key, award?.month) { mutableStateOf(false) }
-    LaunchedEffect(concealed) {
-        if (concealed) { delay(1400); concealed = false }
+    // A contagem acontece ANTES de registrar o sorteio. A gravacao so ocorre ao revelar.
+    var countdown by remember(person?.key, award?.month) { mutableIntStateOf(0) }
+    var celebrating by remember(person?.key, award?.month) { mutableStateOf(false) }
+    var confettiFrame by remember(person?.key, award?.month) { mutableIntStateOf(0) }
+    LaunchedEffect(countdown > 0) {
+        if (countdown > 0) {
+            for (number in 3 downTo 1) {
+                countdown = number
+                delay(1000L)
+            }
+            countdown = 0
+            celebrating = onDraw()
+        }
+    }
+    LaunchedEffect(celebrating) {
+        if (celebrating) {
+            confettiFrame = 0
+            repeat(16) {
+                delay(190L)
+                confettiFrame += 1
+            }
+            celebrating = false
+        }
     }
     AppCard {
         Text("SORTEIO DE PRESENTE", modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center, color = Green, fontWeight = FontWeight.Bold, fontSize = 11.sp)
         Spacer(Modifier.height(16.dp))
-        Text("🎁", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, fontSize = 62.sp)
+        Text(if (celebrating) "🎉" else "🎁", modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center, fontSize = 62.sp)
         Text(person?.name ?: award?.name.orEmpty(), modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
         Text(person?.let { reais(it.totalCents) } ?: "Sorteio salvo",
             modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = Green)
         Spacer(Modifier.height(18.dp))
         Surface(color = Mint, shape = RoundedCornerShape(14.dp)) {
-            Text(
-                when {
-                    concealed -> "Sorteando…"
-                    award != null -> "🎁 ${award.giftName}"
-                    gifts.isEmpty() -> "Cadastre pelo menos um presente."
-                    else -> "Qual presente vai sair?"
-                },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 35.dp, horizontal = 15.dp),
-                textAlign = TextAlign.Center, color = Green, fontWeight = FontWeight.Bold, fontSize = 20.sp
-            )
+            Column(Modifier.fillMaxWidth().padding(vertical = 24.dp, horizontal = 15.dp),
+                horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    when {
+                        countdown > 0 -> "$countdown"
+                        award != null -> "🎁 ${award.giftName}"
+                        gifts.isEmpty() -> "Cadastre pelo menos um presente."
+                        else -> "Qual presente vai sair?"
+                    },
+                    textAlign = TextAlign.Center, color = Green,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = if (countdown > 0) 56.sp else 20.sp
+                )
+                if (countdown > 0) Text("Preparando o sorteio…", fontSize = 13.sp, color = BodyGray)
+                if (celebrating && award != null) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(if (confettiFrame % 2 == 0) "🎊 ✨ 🎉 🎊 ✨ 🎉 🎊" else "✨ 🎉 🎊 ✨ 🎊 🎉 ✨", fontSize = 22.sp,
+                        textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                    Text("Parabéns! Presente sorteado!", color = Green, fontWeight = FontWeight.Bold)
+                }
+            }
         }
         Spacer(Modifier.height(15.dp))
-        if (award != null && !concealed) {
+        if (award != null && countdown == 0) {
             Subtext(if (award.delivered) "Presente entregue ✓" else "Aguardando entrega")
             OutlinedButton(onClick = { onDelivery() }, modifier = Modifier.fillMaxWidth()) {
                 Text(if (award.delivered) "Desfazer entrega" else "Marcar entregue")
             }
         } else if (award == null) {
             Button(
-                onClick = { if (onDraw()) concealed = true },
-                enabled = !concealed && person?.eligible == true && gifts.isNotEmpty(),
+                onClick = { if (countdown == 0) countdown = 3 },
+                enabled = countdown == 0 && person?.eligible == true && gifts.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Sortear presente") }
+            ) { Text(if (countdown > 0) "Sorteando…" else "Sortear presente") }
         }
     }
     Spacer(Modifier.height(7.dp))
-    Subtext("Um único sorteio por pessoa em cada mês. O resultado fica salvo.")
+    Subtext("Contagem de 3 segundos, confetes na revelação e um único sorteio por pessoa em cada mês.")
 }
 
 @Composable
