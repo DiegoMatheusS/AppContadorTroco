@@ -1,5 +1,5 @@
-const CACHE = "contador-trocas-v1";
-const ASSETS = ["./","./index.html","./styles.css","./core.js","./app.js","./manifest.webmanifest","./icon.svg"];
+const CACHE = "contador-trocas-v2";
+const ASSETS = ["./","./index.html","./styles.css","./core.js","./app.js","./manifest.webmanifest","./icon.svg","./icon-192.png","./icon-512.png"];
 self.addEventListener("install",event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));
 });

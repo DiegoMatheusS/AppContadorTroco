@@ -20,7 +20,7 @@ Aplicativo simples, gratuito e sem servidor para registrar trocas de dinheiro em
 4. Selecione **main**, pasta **/ (root)**, e salve.
 5. Abra a URL publicada em um navegador no celular e use **Adicionar à tela inicial** (instalabilidade varia conforme o navegador).
 
-Não é necessário Railway, Node ou banco de dados para utilizar. Os dados são armazenados **somente no navegador e dispositivo em uso**, por meio de `localStorage`. Não há sincronização automática entre celulares, nem entre navegadores; limpar os dados do navegador pode apagar os registros. **Exporte backups frequentemente** e guarde-os em local seguro. O aplicativo pode ser usado offline após a primeira visita, quando servido via HTTPS.
+Não é necessário Railway, Node ou banco de dados para utilizar. Os dados são armazenados **somente no navegador e dispositivo em uso**, por meio de `localStorage`. Não há sincronização automática entre celulares, nem entre navegadores; limpar os dados do navegador pode apagar os registros. **Exporte backups frequentemente** e guarde-os em local seguro. Os ícones PNG de 192 e 512 pixels estão incluídos para facilitar a instalação no celular. O aplicativo pode ser usado offline após a primeira visita, quando servido via HTTPS.
 
 ## Desenvolvimento
 
