@@ -23,7 +23,9 @@ class TrocoStore(context: Context) {
         val root = JSONObject().put("version", 1)
         root.put("exchanges", JSONArray().apply { data.exchanges.forEach { e ->
             put(JSONObject().put("id", e.id).put("name", e.name).put("date", e.date)
-                .put("notes5", e.notes5).put("notes10", e.notes10))
+                .put("notes5", e.notes5).put("notes10", e.notes10)
+                .put("enteredTotalCents", e.enteredTotalCents ?: JSONObject.NULL)
+                .put("noteHint", e.noteHint))
         } })
         root.put("gifts", JSONArray().apply { data.gifts.forEach { g ->
             put(JSONObject().put("id", g.id).put("name", g.name))
@@ -49,9 +51,12 @@ class TrocoStore(context: Context) {
         val exchanges = (0 until exchangeArray.length()).map { index ->
             val obj = exchangeArray.getJSONObject(index)
             Exchange(obj.getString("id"), obj.getString("name"), obj.getString("date"),
-                obj.getInt("notes5"), obj.getInt("notes10")).also {
+                obj.getInt("notes5"), obj.getInt("notes10"),
+                if (obj.isNull("enteredTotalCents")) null else obj.getLong("enteredTotalCents"),
+                obj.optInt("noteHint", 0)).also {
                 require(it.id.isNotBlank() && it.id.length <= 100 &&
-                    TrocoRules.isValidExchange(it.name, it.date, it.notes5, it.notes10)) { "Troca inválida no backup." }
+                    (if (it.enteredTotalCents != null) TrocoRules.isValidDirectTotal(it.enteredTotalCents, it.noteHint)
+                     else TrocoRules.isValidExchange(it.name, it.date, it.notes5, it.notes10))) { "Troca inválida no backup." }
             }
         }
         require(exchanges.distinctBy { it.id }.size == exchanges.size) { "Backup possui trocas duplicadas." }

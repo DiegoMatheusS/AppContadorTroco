@@ -119,11 +119,12 @@ class MainActivity : ComponentActivity() {
                 }
                 TrocoScreen(
                     data = data, storageError = storageError, activeMonth = runningMonth,
-                    onRegister = { name, date, five, ten ->
-                        if (!TrocoRules.isValidExchange(name, date.toString(), five, ten)) false
+                    onRegister = { name, date, totalCents, noteHint ->
+                        if (!TrocoRules.isValidName(name) || !TrocoRules.isValidDirectTotal(totalCents, noteHint)) false
                         else save(data.copy(exchanges = data.exchanges + Exchange(
                             UUID.randomUUID().toString(),
-                            name.trim().replace(Regex("\\s+"), " "), date.toString(), five, ten
+                            name.trim().replace(Regex("\\s+"), " "), date.toString(), 0, 0,
+                            enteredTotalCents = totalCents, noteHint = noteHint
                         ))).also { if (it) message("Troca salva.") }
                     },
                     onDelete = { id -> if (save(data.copy(exchanges = data.exchanges.filterNot { it.id == id }))) message("Troca excluída.") },
@@ -179,7 +180,7 @@ private fun TrocoScreen(
     data: TrocoData,
     storageError: String?,
     activeMonth: YearMonth,
-    onRegister: (String, LocalDate, Int, Int) -> Boolean,
+    onRegister: (String, LocalDate, Long, Int) -> Boolean,
     onDelete: (String) -> Unit,
     onAddGift: (String) -> Boolean,
     onEditGift: (String, String) -> Boolean,
@@ -453,20 +454,20 @@ private fun HomeSummary(ranks: List<PersonRank>, onRanking: () -> Unit, onRegist
 
 @Composable
 private fun RegisterForm(existing: List<Exchange>, month: YearMonth,
-                         onRegister: (String, LocalDate, Int, Int) -> Boolean) {
+                         onRegister: (String, LocalDate, Long, Int) -> Boolean) {
     var name by rememberSaveable { mutableStateOf("") }
     val suggestedDate = if (YearMonth.now() == month) LocalDate.now() else month.atDay(1)
     var dateText by rememberSaveable(month.toString()) { mutableStateOf(suggestedDate.toString()) }
-    var notes5 by rememberSaveable { mutableStateOf("") }
-    var notes10 by rememberSaveable { mutableStateOf("") }
+    var amount by rememberSaveable { mutableStateOf("") }
+    var noteHint by rememberSaveable { mutableIntStateOf(0) }
     var error by remember { mutableStateOf("") }
     val date = LocalDate.parse(dateText)
     val context = LocalContext.current
-    val five = notes5.toIntOrNull() ?: 0
-    val ten = notes10.toIntOrNull() ?: 0
-    val total = five.toLong() * 500L + ten.toLong() * 1000L
+    val cents = amount.replace(",", ".").toBigDecimalOrNull()
+        ?.takeIf { it.scale() <= 2 }
+        ?.movePointRight(2)?.let { runCatching { it.longValueExact() }.getOrNull() }
     AppCard {
-        Subtext("Informe quantas notas de R$ 5 e R$ 10 foram trocadas. Pode usar apenas um dos valores; não há quantidade mínima de cada nota. O total é automático.")
+        Subtext("Digite diretamente o valor total trocado. Não precisa contar notas de R$ 5 nem de R$ 10.")
         Spacer(Modifier.height(14.dp))
         OutlinedTextField(
             value = name, onValueChange = { if (it.length <= 80) name = it },
@@ -492,26 +493,37 @@ private fun RegisterForm(existing: List<Exchange>, month: YearMonth,
             }, date.year, date.monthValue - 1, date.dayOfMonth).show()
         }) { Text("Data: ${date.format(dateFormat)} ▾") }
         Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedTextField(
-                value = notes5, onValueChange = { if (it.length <= 7 && it.all(Char::isDigit)) notes5 = it },
-                label = { Text("Notas de R$ 5") }, placeholder = { Text("0") }, singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.weight(1f)
-            )
-            OutlinedTextField(
-                value = notes10, onValueChange = { if (it.length <= 7 && it.all(Char::isDigit)) notes10 = it },
-                label = { Text("Notas de R$ 10") }, placeholder = { Text("0") }, singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.weight(1f)
-            )
+        OutlinedTextField(
+            value = amount,
+            onValueChange = { value ->
+                if (value.length <= 12 && value.all { it.isDigit() || it == ',' || it == '.' }) amount = value
+            },
+            label = { Text("Valor total trocado (R$)") },
+            placeholder = { Text("Ex.: 150,00") },
+            supportingText = { Text("Informe apenas o valor total. O tipo de nota é opcional.") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            singleLine = true, modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.height(12.dp))
+        Text("Tipo de nota (opcional)", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(0 to "Não informar", 5 to "R$ 5", 10 to "R$ 10").forEach { (type, label) ->
+                if (noteHint == type) Button(
+                    onClick = { noteHint = type }, modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 3.dp), shape = RoundedCornerShape(10.dp)
+                ) { Text(label, fontSize = 11.sp) }
+                else OutlinedButton(
+                    onClick = { noteHint = type }, modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 3.dp), shape = RoundedCornerShape(10.dp)
+                ) { Text(label, fontSize = 11.sp) }
+            }
         }
         Spacer(Modifier.height(12.dp))
         Surface(color = Mint, shape = RoundedCornerShape(12.dp)) {
             Column(Modifier.fillMaxWidth().padding(15.dp)) {
-                Text("VALOR CALCULADO", fontSize = 11.sp, color = Green, fontWeight = FontWeight.Bold)
-                Text(reais(total), fontSize = 25.sp, color = Green, fontWeight = FontWeight.ExtraBold)
-                Text("$five × R$ 5 + $ten × R$ 10", color = BodyGray, fontSize = 12.sp)
+                Text("VALOR REGISTRADO", fontSize = 11.sp, color = Green, fontWeight = FontWeight.Bold)
+                Text(reais(cents ?: 0L), fontSize = 25.sp, color = Green, fontWeight = FontWeight.ExtraBold)
             }
         }
         if (error.isNotEmpty()) {
@@ -520,13 +532,12 @@ private fun RegisterForm(existing: List<Exchange>, month: YearMonth,
         }
         Spacer(Modifier.height(16.dp))
         Button(onClick = {
-            error = if (!TrocoRules.isValidExchange(name, dateText, five, ten) ||
-                    (notes5.isNotEmpty() && notes5.toIntOrNull() == null) ||
-                    (notes10.isNotEmpty() && notes10.toIntOrNull() == null))
-                "Informe nome e quantidades válidas. Pelo menos uma nota deve ser registrada."
+            error = if (!TrocoRules.isValidName(name) || cents == null ||
+                !TrocoRules.isValidDirectTotal(cents, noteHint))
+                "Informe nome e valor total válido, maior que zero."
             else ""
-            if (error.isEmpty() && onRegister(name, date, five, ten)) {
-                name = ""; notes5 = ""; notes10 = ""; dateText = suggestedDate.toString()
+            if (error.isEmpty() && onRegister(name, date, cents!!, noteHint)) {
+                name = ""; amount = ""; noteHint = 0; dateText = suggestedDate.toString()
             }
         }, modifier = Modifier.fillMaxWidth()) { Text("+ Salvar troca") }
     }
@@ -539,7 +550,10 @@ private fun EntryCard(exchange: Exchange, onDelete: (() -> Unit)? = null) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(exchange.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text("${LocalDate.parse(exchange.date).format(dateFormat)} · ${exchange.notes5} notas de 5 · ${exchange.notes10} notas de 10",
+                Text("${LocalDate.parse(exchange.date).format(dateFormat)} · " +
+                    if (exchange.enteredTotalCents != null) {
+                        when(exchange.noteHint) { 5 -> "Notas de R$ 5"; 10 -> "Notas de R$ 10"; else -> "Tipo de nota não informado" }
+                    } else "${exchange.notes5} notas de 5 · ${exchange.notes10} notas de 10",
                     color = BodyGray, fontSize = 11.sp, lineHeight = 17.sp)
             }
             Spacer(Modifier.width(8.dp))
