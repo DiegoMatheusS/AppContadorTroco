@@ -395,7 +395,7 @@ private fun RegisterForm(existing: List<Exchange>, month: YearMonth,
     val ten = notes10.toIntOrNull() ?: 0
     val total = five.toLong() * 500L + ten.toLong() * 1000L
     AppCard {
-        Subtext("Informe quantas notas de cada valor foram trocadas. O total é automático.")
+        Subtext("Informe quantas notas de R$ 5 e R$ 10 foram trocadas. Pode usar apenas um dos valores; não há quantidade mínima de cada nota. O total é automático.")
         Spacer(Modifier.height(14.dp))
         OutlinedTextField(
             value = name, onValueChange = { if (it.length <= 80) name = it },

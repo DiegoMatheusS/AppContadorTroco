@@ -15,6 +15,47 @@ class RulesTest {
         assertTrue(TrocoRules.canDraw(data, october, "ana"))
     }
 
+    @Test fun anyCombinationOfNotesIsEligibleFrom150Reais() {
+        val examples = listOf(
+            Exchange("somente5", "Maria", "2026-10-04", 30, 0),
+            Exchange("somente10", "Joao", "2026-10-05", 0, 15),
+            Exchange("misturadas", "Carlos", "2026-10-06", 10, 10)
+        )
+        for (exchange in examples) {
+            val data = TrocoData(exchanges = listOf(exchange))
+            val rank = TrocoRules.ranks(data, october).single()
+            assertEquals(15_000L, rank.totalCents)
+            assertTrue("A combinação de notas não deve alterar a elegibilidade", rank.eligible)
+            assertTrue(TrocoRules.canDraw(data, october, TrocoRules.personKey(exchange.name)))
+        }
+    }
+
+    @Test fun amountsBelow150AreNotEligibleRegardlessOfNotes() {
+        val examples = listOf(
+            Exchange("somente5", "Maria", "2026-10-04", 29, 0),
+            Exchange("somente10", "Joao", "2026-10-05", 0, 14),
+            Exchange("misturadas", "Carlos", "2026-10-06", 9, 10)
+        )
+        for (exchange in examples) {
+            val data = TrocoData(exchanges = listOf(exchange))
+            val rank = TrocoRules.ranks(data, october).single()
+            assertTrue(rank.totalCents < REWARD_THRESHOLD_CENTS)
+            assertFalse(rank.eligible)
+            assertFalse(TrocoRules.canDraw(data, october, TrocoRules.personKey(exchange.name)))
+        }
+    }
+
+    @Test fun separateExchangesAccumulateUntilEligible() {
+        val data = TrocoData(exchanges = listOf(
+            Exchange("a", "Ana", "2026-10-01", 10, 0),
+            Exchange("b", "Ana", "2026-10-22", 0, 10)
+        ))
+        val rank = TrocoRules.ranks(data, october).single()
+        assertEquals(15_000L, rank.totalCents)
+        assertEquals(2, rank.exchangeCount)
+        assertTrue(rank.eligible)
+    }
+
     @Test fun notesAreSummedAutomatically() {
         val data = TrocoData(exchanges = listOf(Exchange("1", "Ana", "2026-10-10", 7, 5)))
         assertEquals(8_500L, TrocoRules.ranks(data, october).single().totalCents)
