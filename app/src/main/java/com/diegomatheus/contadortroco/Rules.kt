@@ -79,4 +79,16 @@ object TrocoRules {
 
     fun canDraw(data: TrocoData, month: YearMonth, key: String): Boolean =
         data.gifts.isNotEmpty() && ranks(data, month).any { it.key == key && it.eligible && it.award == null }
+
+    /** Apenas meses anteriores: o mês atual nunca reaproveita trocas ou presentes passados. */
+    fun historicalMonths(data: TrocoData, currentMonth: YearMonth): List<YearMonth> =
+        (data.exchanges.mapNotNull { runCatching { YearMonth.from(LocalDate.parse(it.date)) }.getOrNull() } +
+            data.awards.mapNotNull { runCatching { YearMonth.parse(it.month) }.getOrNull() })
+            .filter { it.isBefore(currentMonth) }
+            .distinct()
+            .sortedDescending()
+
+    /** Total geral para consulta no histórico; nunca é usado para decidir elegibilidade. */
+    fun historicalTotalCents(data: TrocoData, currentMonth: YearMonth): Long =
+        data.exchanges.filter { it.date.take(7) < currentMonth.toString() }.sumOf { it.totalCents }
 }
