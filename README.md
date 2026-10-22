@@ -3,9 +3,9 @@
 App Android **nativo** em Kotlin + Jetpack Compose para controlar pessoas que trocaram notas de R$ 5 e R$ 10.
 
 ## Cadastro e regras
-- Informe **nome, data, quantidade de notas de R$ 5 e quantidade de notas de R$ 10**.
-- No formulário, digite a **quantidade** no campo único e escolha a nota com um toque nos botões **R$ 5** ou **R$ 10**. Alterne entre os botões para informar ambos os tipos; a quantidade de cada tipo é mantida até salvar.
-- O valor é calculado automaticamente: **5 × notas de 5 + 10 × notas de 10**.
+- Informe **nome, data e valor total trocado em reais**, diretamente. **Não é necessário informar a quantidade de notas.**
+- Se desejar, indique apenas o tipo de nota com um toque em **R$ 5** ou **R$ 10**; ou deixe **Não informar**. O valor total é independente disso.
+- O valor total é digitado diretamente, sem cálculo obrigatório por notas.
 - **Não existe quantidade mínima de cada tipo de nota:** só notas de R$ 5, só notas de R$ 10, ou misturadas são aceitas. O critério para presente é exclusivamente o **valor mensal total ≥ R$ 150,00**.
 - **A cada novo mês o painel, ranking e elegibilidade começam zerados automaticamente.** Nada do mês anterior é somado à campanha atual. Dentro do mesmo mês, as trocas de uma pessoa somam para atingir R$ 150.
 - **Histórico:** os registros e sorteios dos meses encerrados continuam disponíveis para consulta (incluindo totais de cada mês e total histórico), sem entrar nos cálculos do mês atual.

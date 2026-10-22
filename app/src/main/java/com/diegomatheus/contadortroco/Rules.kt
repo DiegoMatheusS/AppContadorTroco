@@ -12,9 +12,11 @@ data class Exchange(
     val name: String,
     val date: String,
     val notes5: Int,
-    val notes10: Int
+    val notes10: Int,
+    val enteredTotalCents: Long? = null,
+    val noteHint: Int = 0
 ) {
-    val totalCents: Long get() = notes5.toLong() * 500L + notes10.toLong() * 1000L
+    val totalCents: Long get() = enteredTotalCents ?: (notes5.toLong() * 500L + notes10.toLong() * 1000L)
 }
 
 data class Gift(val id: String, val name: String)
@@ -60,6 +62,9 @@ object TrocoRules {
         isValidName(name) && runCatching { LocalDate.parse(date) }.isSuccess &&
             notes5 >= 0 && notes10 >= 0 && notes5 <= 1_000_000 && notes10 <= 1_000_000 &&
             (notes5 > 0 || notes10 > 0)
+
+    fun isValidDirectTotal(cents: Long, noteHint: Int): Boolean =
+        cents > 0L && cents <= 1_000_000_00L && noteHint in listOf(0, 5, 10)
 
     fun ranks(data: TrocoData, month: YearMonth): List<PersonRank> {
         val totals = linkedMapOf<String, Triple<String, Long, Int>>()

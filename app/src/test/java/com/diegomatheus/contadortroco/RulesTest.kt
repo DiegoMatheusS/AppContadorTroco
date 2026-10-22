@@ -7,6 +7,18 @@ import java.time.YearMonth
 class RulesTest {
     private val october = YearMonth.parse("2026-10")
 
+    @Test fun directTotalDoesNotRequireNoteCounts() {
+        val data = TrocoData(exchanges = listOf(
+            Exchange("1", "Ana", "2026-10-04", 0, 0, enteredTotalCents = 15_000L),
+            Exchange("2", "Bia", "2026-10-04", 0, 0, enteredTotalCents = 15_500L, noteHint = 5)
+        ))
+        val ranks = TrocoRules.ranks(data, october)
+        assertTrue(ranks.all { it.eligible })
+        assertEquals(15_000L, ranks.first { it.name == "Ana" }.totalCents)
+        assertFalse(TrocoRules.isValidDirectTotal(0, 0))
+        assertTrue(TrocoRules.isValidDirectTotal(15_001L, 0))
+    }
+
     @Test fun exact150IsEligible() {
         val data = TrocoData(exchanges = listOf(Exchange("1", "Ana", "2026-10-04", 10, 10)))
         val ranking = TrocoRules.ranks(data, october)
