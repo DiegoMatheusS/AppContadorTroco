@@ -1,36 +1,21 @@
-# Contador de Trocas
+# Contador de Trocas — Android Kotlin
 
-Aplicativo simples, gratuito e sem servidor para registrar trocas de dinheiro em notas de **R$ 5 e R$ 10** e sortear presentes.
+App Android **nativo** em Kotlin + Jetpack Compose para controlar pessoas que trocaram notas de R$ 5 e R$ 10.
 
-## Como funciona
+## Cadastro e regras
+- Informe **nome, data, quantidade de notas de R$ 5 e quantidade de notas de R$ 10**.
+- O valor é calculado automaticamente: **5 × notas de 5 + 10 × notas de 10**.
+- Cada pessoa acumula o valor das trocas dentro de cada mês.
+- **R$ 150,00 exatos já tornam a pessoa elegível:** total mensal **≥ R$ 150,00**.
+- Ranking mensal, lista de elegíveis, sorteio com uma tentativa por pessoa por mês, histórico de sorteios e confirmação de entrega.
+- Presentes iniciais: caixa de bombom, trufa, bolo de pote, desodorante, kit sabonete e escova de dente. Cadastro, edição e exclusão.
+- Backup JSON exportável e importável pelas ferramentas de arquivos do Android.
 
-- Registre **nome, data, valor e notas** utilizadas em cada troca. Para notas de R$ 10, o valor deve ser múltiplo de R$ 10; para notas de R$ 5 ou mistas, múltiplo de R$ 5.
-- O app soma todas as trocas de uma pessoa **dentro do mesmo mês**, sem diferenciar maiúsculas/minúsculas e acentos no nome.
-- Quem ultrapassar **R$ 150,00** (R$ 150,00 exatos não bastam) fica elegível para **um sorteio de presente naquele mês**.
-- Toque na pessoa elegível no ranking para fazer o sorteio. O resultado é salvo, não sendo possível sortear de novo para a mesma pessoa e mês.
-- Cadastre, remova e altere os tipos de presentes disponíveis. Os sorteios antigos continuam guardados se algum presente for removido.
-- Marque o presente como entregue e consulte meses anteriores.
-- Exporte ou importe um arquivo **JSON** de backup nas Configurações.
+## Executar
+1. Abra o repositório no **Android Studio**.
+2. Sincronize o Gradle (JDK 17 ou superior, SDK Android 36). Versão alvo Gradle 8.14.3.
+3. Execute o módulo `app` em um dispositivo Android 8+ ou emulador.
 
-## Publicar grátis no GitHub Pages
+No GitHub, o workflow **Android CI** faz testes e tenta gerar o APK em **Actions → Android CI → Artifacts → ContadorTroco-debug-apk**. Ele ficará disponível se o build passar. Não é necessário Railway.
 
-1. Integre a PR à branch `main`.
-2. Abra **Settings → Pages → Build and deployment**.
-3. Em **Source**, selecione **Deploy from a branch**.
-4. Selecione **main**, pasta **/ (root)**, e salve.
-5. Abra a URL publicada em um navegador no celular e use **Adicionar à tela inicial** (instalabilidade varia conforme o navegador).
-
-Não é necessário Railway, Node ou banco de dados para utilizar. Os dados são armazenados **somente no navegador e dispositivo em uso**, por meio de `localStorage`. Não há sincronização automática entre celulares, nem entre navegadores; limpar os dados do navegador pode apagar os registros. **Exporte backups frequentemente** e guarde-os em local seguro. Os ícones PNG de 192 e 512 pixels estão incluídos para facilitar a instalação no celular. O aplicativo pode ser usado offline após a primeira visita, quando servido via HTTPS.
-
-## Desenvolvimento
-
-Abrir `index.html` no navegador para testar o básico (para testar PWA/service worker, sirva por localhost ou HTTPS).
-
-```sh
-node --test tests/*.test.cjs
-node --check app.js
-```
-
-## Privacidade
-
-Sem login, rastreadores, anúncios ou serviços externos. Nomes e registros permanecem no dispositivo, salvo quando o usuário exporta o backup. Não publique arquivos de backup com nomes de participantes em repositórios públicos.
+Os registros são **locais**, sem login nem sincronização entre aparelhos. Exporte backups com frequência. O backup inclui nomes e valores, não o publique em repositórios públicos.

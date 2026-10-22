@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.ContadorTroco" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">#0A6754</item>
+        <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>
