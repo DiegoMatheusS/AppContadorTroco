@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b6757">
+  <meta name="description" content="Cadastre trocas de notas, acompanhe o ranking mensal e sorteie presentes.">
+  <meta name="color-scheme" content="light">
+  <link rel="icon" type="image/svg+xml" href="./icon.svg">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+  <title>Contador de Trocas</title>
+  <script src="./core.js" defer></script>
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="header-row">
+        <div class="branding">
+          <div class="brand-icon" aria-hidden="true">$</div>
+          <div><span class="eyebrow brand-label">CONTROLE PESSOAL</span><strong>Contador de Trocas</strong></div>
+        </div>
+        <span class="offline-chip"><span class="status-dot"></span>Sem servidor</span>
+      </div>
+      <div class="header-main">
+        <div><p class="header-kicker">Seu controle de trocas</p><h1>Organize cada troca.<br><span>Valorize quem ajudou.</span></h1></div>
+        <div class="header-symbol" aria-hidden="true">↗</div>
+      </div>
+    </header>
+
+    <main id="main">
+      <div class="period-bar surface">
+        <div><span class="eyebrow">PERÍODO SELECIONADO</span><strong id="monthLabel">Mês atual</strong></div>
+        <label class="month-field"><span class="sr-only">Selecionar mês do ranking</span><input type="month" id="monthPicker" aria-label="Selecionar mês"></label>
+      </div>
+      <div id="storageWarning" class="notice notice-danger" role="alert" hidden>O navegador não conseguiu salvar os dados. Libere espaço ou faça um backup antes de continuar.</div>
+
+      <section class="view" id="view-dashboard" aria-labelledby="dashTitle">
+        <div class="section-heading"><div><span class="eyebrow">VISÃO GERAL</span><h2 id="dashTitle">Resumo do mês</h2></div><span class="soft-tag">Em tempo real</span></div>
+        <div class="stats-grid">
+          <article class="stat-card stat-primary"><div class="stat-icon">R$</div><p>Total trocado</p><strong id="statAmount">R$ 0,00</strong><span>Em notas de R$ 5 e R$ 10</span></article>
+          <article class="stat-card"><div class="stat-icon mint">♧</div><p>Pessoas</p><strong id="statPeople">0</strong><span>Participantes no mês</span></article>
+          <article class="stat-card"><div class="stat-icon amber">★</div><p>Elegíveis</p><strong id="statEligible">0</strong><span>Acima de R$ 150</span></article>
+        </div>
+        <div class="grid-two">
+          <article class="surface feature-card">
+            <div class="card-title-row"><div><span class="eyebrow">DESTAQUE DO MÊS</span><h3>Quem lidera?</h3></div><div class="badge-icon">★</div></div>
+            <div id="dashboardLeader" class="feature-body"></div>
+            <button class="button button-secondary" data-go="ranking">Ver ranking completo <span aria-hidden="true">→</span></button>
+          </article>
+          <article class="surface feature-card">
+            <div class="card-title-row"><div><span class="eyebrow">CAMPANHA DE PRESENTES</span><h3>Meta para ganhar</h3></div><div class="badge-icon warm">🎁</div></div>
+            <div class="threshold-number">Acima de <strong>R$ 150,00</strong></div>
+            <p class="body-muted">O valor é acumulado durante o mês. Ao ultrapassar a meta, a pessoa ganha um sorteio.</p>
+            <button class="button button-secondary" data-go="ranking">Ver quem pode sortear <span aria-hidden="true">→</span></button>
+          </article>
+        </div>
+        <div class="section-heading space-top"><div><span class="eyebrow">MOVIMENTAÇÃO</span><h2>Últimas trocas</h2></div><button class="text-link" data-go="register">+ Nova troca</button></div>
+        <div id="recentEntries" class="surface list-surface"></div>
+      </section>
+
+      <section class="view" id="view-register" aria-labelledby="registerTitle" hidden>
+        <div class="section-heading"><div><span class="eyebrow">LANÇAMENTO RÁPIDO</span><h2 id="registerTitle">Registrar troca</h2></div></div>
+        <div class="surface form-card">
+          <p class="body-muted form-intro">Anote quem trouxe as notas. O total do mês é atualizado automaticamente.</p>
+          <form id="entryForm">
+            <div class="field"><label for="personName">Nome da pessoa</label><input id="personName" name="name" required maxlength="80" list="personSuggestions" autocomplete="off" placeholder="Ex.: Maria Silva"><datalist id="personSuggestions"></datalist></div>
+            <div class="field-row">
+              <div class="field"><label for="entryDate">Data</label><input id="entryDate" name="date" type="date" required></div>
+              <div class="field"><label for="entryAmount">Valor (R$)</label><input id="entryAmount" name="amount" inputmode="decimal" type="text" required placeholder="Ex.: 50,00"></div>
+            </div>
+            <div class="field"><label for="noteType">Notas recebidas</label><select id="noteType" name="noteType" required><option value="10">Somente notas de R$ 10</option><option value="5">Somente notas de R$ 5</option><option value="mistas">Notas de R$ 5 e R$ 10</option></select><small>Somente notas de R$ 5 e/ou R$ 10 entram na campanha.</small></div>
+            <div id="entryError" class="notice notice-danger" role="alert" hidden></div>
+            <button class="button button-primary button-full" type="submit">+ Salvar troca</button>
+          </form>
+        </div>
+        <div class="section-heading space-top"><div><span class="eyebrow">NESTE MÊS</span><h2>Trocas registradas</h2></div></div>
+        <div id="entryList" class="surface list-surface"></div>
+      </section>
+
+      <section class="view" id="view-ranking" aria-labelledby="rankingTitle" hidden>
+        <div class="section-heading"><div><span class="eyebrow">CLASSIFICAÇÃO MENSAL</span><h2 id="rankingTitle">Ranking de trocas</h2></div><span class="soft-tag" id="rankingCount">0 pessoas</span></div>
+        <p class="body-muted section-intro">Quem ultrapassar R$ 150,00 pode sortear um presente. Toque em uma pessoa elegível.</p>
+        <div id="rankingList" class="ranking-list"></div>
+        <div class="section-heading space-top"><div><span class="eyebrow">RESULTADOS</span><h2>Presentes sorteados</h2></div></div>
+        <div id="awardList" class="surface list-surface"></div>
+      </section>
+
+      <section class="view" id="view-draw" aria-labelledby="drawTitle" hidden>
+        <button class="back-link" id="drawBack" type="button">← Voltar ao ranking</button>
+        <div class="section-heading"><div><span class="eyebrow">MOMENTO DO PRESENTE</span><h2 id="drawTitle">Sorteio de presente</h2></div></div>
+        <div class="surface draw-panel">
+          <div class="draw-celebration" aria-hidden="true">✦ <span>🎁</span> ✦</div>
+          <p class="draw-overline" id="drawPerson">Participante</p>
+          <strong class="draw-total" id="drawTotal">R$ 0,00</strong>
+          <p class="body-muted">Total de trocas neste mês</p>
+          <div id="drawResult" class="draw-result" aria-live="polite"><span>O presente aparecerá aqui!</span></div>
+          <button id="drawButton" type="button" class="button button-primary button-full">Sortear presente</button>
+          <div id="drawDelivery" class="delivery-area" hidden></div>
+        </div>
+        <p class="small-note">O presente é escolhido aleatoriamente entre os cadastrados. Cada pessoa participa uma vez por mês.</p>
+      </section>
+
+      <section class="view" id="view-gifts" aria-labelledby="giftsTitle" hidden>
+        <div class="section-heading"><div><span class="eyebrow">PERSONALIZAR</span><h2 id="giftsTitle">Presentes do sorteio</h2></div><span class="soft-tag" id="giftCount">0 opções</span></div>
+        <div class="surface form-card">
+          <form id="giftForm" class="gift-form"><div class="field"><label for="giftName">Novo presente</label><input id="giftName" required maxlength="80" placeholder="Ex.: Caixa de bombom"></div><button type="submit" class="button button-primary">Adicionar</button></form>
+          <p class="helper-note">Todos os presentes cadastrados têm a mesma chance de serem sorteados.</p>
+        </div>
+        <div class="section-heading space-top"><div><span class="eyebrow">CATÁLOGO</span><h2>Opções disponíveis</h2></div></div>
+        <div id="giftList" class="surface list-surface"></div>
+      </section>
+
+      <section class="view" id="view-settings" aria-labelledby="settingsTitle" hidden>
+        <div class="section-heading"><div><span class="eyebrow">SEUS DADOS</span><h2 id="settingsTitle">Backup e configurações</h2></div></div>
+        <article class="surface settings-card"><div class="settings-icon">↓</div><div><h3>Exportar backup</h3><p class="body-muted">Salve um arquivo com trocas, presentes e sorteios. Recomendado fazer regularmente.</p><button class="button button-secondary" id="exportButton">Baixar backup (.json)</button></div></article>
+        <article class="surface settings-card"><div class="settings-icon">↑</div><div><h3>Importar backup</h3><p class="body-muted">Restaura um arquivo exportado pelo app e substitui os registros atuais.</p><label class="button button-secondary file-button" for="importInput">Selecionar arquivo .json</label><input type="file" id="importInput" accept=".json,application/json" hidden></div></article>
+        <article class="surface settings-card"><div class="settings-icon">ⓘ</div><div><h3>Dados neste dispositivo</h3><p class="body-muted">Os registros ficam apenas neste navegador. Eles não sincronizam automaticamente com outros aparelhos e podem ser perdidos ao limpar os dados do navegador.</p><p class="helper-note">Não é necessário internet depois do primeiro acesso no endereço publicado, desde que o navegador tenha armazenado os arquivos do app.</p></div></article>
+      </section>
+    </main>
+    <nav class="bottom-nav" aria-label="Navegação principal">
+      <button class="nav-item active" data-go="dashboard" aria-current="page"><span class="nav-icon">⌂</span><span>Início</span></button>
+      <button class="nav-item" data-go="register"><span class="nav-icon">＋</span><span>Registrar</span></button>
+      <button class="nav-item" data-go="ranking"><span class="nav-icon">▤</span><span>Ranking</span></button>
+      <button class="nav-item" data-go="gifts"><span class="nav-icon">✧</span><span>Presentes</span></button>
+      <button class="nav-item" data-go="settings"><span class="nav-icon">⚙</span><span>Ajustes</span></button>
+    </nav>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  </div>
+</body>
+</html>

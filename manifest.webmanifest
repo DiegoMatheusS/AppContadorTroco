@@ -1,0 +1,19 @@
+{
+  "name": "Contador de Trocas",
+  "short_name": "Trocas",
+  "description": "Registro mensal de trocas de notas e sorteio de presentes",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f8f7",
+  "theme_color": "#0b6757",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
