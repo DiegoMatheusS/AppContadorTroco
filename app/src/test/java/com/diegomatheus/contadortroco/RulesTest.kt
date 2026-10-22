@@ -71,6 +71,48 @@ class RulesTest {
         assertEquals(1, TrocoRules.ranks(data, october).size)
     }
 
+    @Test fun nextMonthStartsAtZeroButPreviousMonthRemainsInHistory() {
+        val october = YearMonth.parse("2026-10")
+        val november = YearMonth.parse("2026-11")
+        val octoberAward = Award("2026-10", "ana", "Ana", "g1", "Trufa", 12345L)
+        val data = TrocoData(
+            exchanges = listOf(Exchange("oct", "Ana", "2026-10-31", 30, 0)),
+            awards = listOf(octoberAward)
+        )
+        assertEquals(15_000L, TrocoRules.ranks(data, october).single().totalCents)
+        assertTrue(TrocoRules.ranks(data, november).isEmpty())
+        assertFalse(TrocoRules.canDraw(data, november, "ana"))
+        assertEquals(listOf(october), TrocoRules.historicalMonths(data, november))
+        assertEquals(15_000L, TrocoRules.historicalTotalCents(data, november))
+        assertEquals("Trufa", TrocoRules.ranks(data, october).single().award?.giftName)
+    }
+
+    @Test fun olderExchangesNeverCountForEligibilityInNewMonth() {
+        val october = YearMonth.parse("2026-10")
+        val november = YearMonth.parse("2026-11")
+        val data = TrocoData(exchanges = listOf(
+            Exchange("oct", "Ana", "2026-10-30", 100, 0),
+            Exchange("nov", "Ana", "2026-11-01", 0, 5)
+        ))
+        assertEquals(50_000L, TrocoRules.ranks(data, october).single().totalCents)
+        val current = TrocoRules.ranks(data, november).single()
+        assertEquals(5_000L, current.totalCents)
+        assertFalse(current.eligible)
+        assertFalse(TrocoRules.canDraw(data, november, "ana"))
+        assertEquals(50_000L, TrocoRules.historicalTotalCents(data, november))
+    }
+
+    @Test fun historyNeverIncludesActiveOrFutureMonth() {
+        val november = YearMonth.parse("2026-11")
+        val data = TrocoData(exchanges = listOf(
+            Exchange("oct", "Ana", "2026-10-01", 30, 0),
+            Exchange("nov", "Bia", "2026-11-01", 0, 15),
+            Exchange("dec", "Bia", "2026-12-01", 30, 0)
+        ))
+        assertEquals(listOf(YearMonth.parse("2026-10")), TrocoRules.historicalMonths(data, november))
+        assertEquals(15_000L, TrocoRules.historicalTotalCents(data, november))
+    }
+
     @Test fun monthsAreIndependent() {
         val data = TrocoData(exchanges = listOf(Exchange("1", "Ana", "2026-09-04", 0, 20)))
         assertTrue(TrocoRules.ranks(data, october).isEmpty())

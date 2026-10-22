@@ -6,7 +6,8 @@ App Android **nativo** em Kotlin + Jetpack Compose para controlar pessoas que tr
 - Informe **nome, data, quantidade de notas de R$ 5 e quantidade de notas de R$ 10**.
 - O valor é calculado automaticamente: **5 × notas de 5 + 10 × notas de 10**.
 - **Não existe quantidade mínima de cada tipo de nota:** só notas de R$ 5, só notas de R$ 10, ou misturadas são aceitas. O critério para presente é exclusivamente o **valor mensal total ≥ R$ 150,00**.
-- Cada pessoa acumula o valor das trocas dentro de cada mês.
+- **A cada novo mês o painel, ranking e elegibilidade começam zerados automaticamente.** Nada do mês anterior é somado à campanha atual. Dentro do mesmo mês, as trocas de uma pessoa somam para atingir R$ 150.
+- **Histórico:** os registros e sorteios dos meses encerrados continuam disponíveis para consulta (incluindo totais de cada mês e total histórico), sem entrar nos cálculos do mês atual.
 - **R$ 150,00 exatos já tornam a pessoa elegível:** total mensal **≥ R$ 150,00**.
 - Ranking mensal, lista de elegíveis, sorteio com uma tentativa por pessoa por mês, histórico de sorteios e confirmação de entrega.
 - Presentes iniciais: caixa de bombom, trufa, bolo de pote, desodorante, kit sabonete e escova de dente. Cadastro, edição e exclusão.

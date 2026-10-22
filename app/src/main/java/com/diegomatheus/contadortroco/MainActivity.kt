@@ -53,6 +53,12 @@ class MainActivity : ComponentActivity() {
     private var data by mutableStateOf(TrocoData())
     private var storageError by mutableStateOf<String?>(null)
     private var locked = false
+    private var runningMonth by mutableStateOf(YearMonth.now())
+
+    override fun onResume() {
+        super.onResume()
+        runningMonth = YearMonth.now()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,6 +72,13 @@ class MainActivity : ComponentActivity() {
                 primary = Green, onPrimary = Color.White, secondary = Green,
                 background = PageBg, surface = Color.White, onSurface = DarkGreen
             )) {
+                // Mantém o mês vigente correto mesmo se o app permanecer aberto na virada.
+                LaunchedEffect(Unit) {
+                    while (true) {
+                        delay(60_000L)
+                        runningMonth = YearMonth.now()
+                    }
+                }
                 var pendingBackup by remember { mutableStateOf<TrocoData?>(null) }
                 val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
                     if (uri != null) runCatching {
@@ -105,7 +118,7 @@ class MainActivity : ComponentActivity() {
                     )
                 }
                 TrocoScreen(
-                    data = data, storageError = storageError,
+                    data = data, storageError = storageError, activeMonth = runningMonth,
                     onRegister = { name, date, five, ten ->
                         if (!TrocoRules.isValidExchange(name, date.toString(), five, ten)) false
                         else save(data.copy(exchanges = data.exchanges + Exchange(
@@ -130,7 +143,7 @@ class MainActivity : ComponentActivity() {
                     },
                     onDeleteGift = { id -> save(data.copy(gifts = data.gifts.filterNot { it.id == id })) },
                     onDraw = { month, key ->
-                        if (!TrocoRules.canDraw(data, month, key)) false
+                        if (month != YearMonth.now() || !TrocoRules.canDraw(data, month, key)) false
                         else {
                             val person = TrocoRules.ranks(data, month).first { it.key == key }
                             val gift = data.gifts[SecureRandom().nextInt(data.gifts.size)]
@@ -165,6 +178,7 @@ class MainActivity : ComponentActivity() {
 private fun TrocoScreen(
     data: TrocoData,
     storageError: String?,
+    activeMonth: YearMonth,
     onRegister: (String, LocalDate, Int, Int) -> Boolean,
     onDelete: (String) -> Unit,
     onAddGift: (String) -> Boolean,
@@ -176,14 +190,28 @@ private fun TrocoScreen(
     onImport: () -> Unit
 ) {
     var tab by rememberSaveable { mutableStateOf("inicio") }
-    var currentMonth by rememberSaveable { mutableStateOf(YearMonth.now().toString()) }
+
+    var historyMonthText by rememberSaveable { mutableStateOf(YearMonth.now().minusMonths(1).toString()) }
     var selectedPerson by rememberSaveable { mutableStateOf("") }
-    val month = YearMonth.parse(currentMonth)
+    // Tela principal sempre representa SOMENTE o mês vigente, sem carregar períodos anteriores.
+    val month = activeMonth
+    val currentMonth = month.toString()
     val ranks = remember(data, currentMonth) { TrocoRules.ranks(data, month) }
     val exchanges = remember(data, currentMonth) {
         data.exchanges.filter { it.date.startsWith("$currentMonth-") }.sortedByDescending { it.date }
     }
     val awards = data.awards.filter { it.month == currentMonth }.sortedByDescending { it.at }
+    val pastMonths = remember(data, activeMonth) { TrocoRules.historicalMonths(data, activeMonth) }
+    val historyMonth = YearMonth.parse(historyMonthText)
+    val oldRanks = remember(data, historyMonthText) { TrocoRules.ranks(data, historyMonth) }
+    val oldExchanges = remember(data, historyMonthText) {
+        data.exchanges.filter { it.date.startsWith("$historyMonthText-") }.sortedByDescending { it.date }
+    }
+    val oldAwards = data.awards.filter { it.month == historyMonthText }.sortedByDescending { it.at }
+    val openHistory: () -> Unit = {
+        historyMonthText = pastMonths.firstOrNull()?.toString() ?: activeMonth.minusMonths(1).toString()
+        tab = "historico"
+    }
     Scaffold(
         containerColor = PageBg,
         topBar = {
@@ -202,7 +230,7 @@ private fun TrocoScreen(
                     Triple("ajustes","Ajustes","⚙")
                 ).forEach { (id, label, icon) ->
                     NavigationBarItem(
-                        selected = tab == id || (tab == "sorteio" && id == "ranking"),
+                        selected = tab == id || ((tab == "sorteio" || tab == "historico") && id == "ranking"),
                         onClick = { tab = id }, icon = { Text(icon, fontSize = 22.sp) },
                         label = { Text(label, fontSize = 10.sp) }, alwaysShowLabel = true,
                         colors = NavigationBarItemDefaults.colors(
@@ -223,25 +251,30 @@ private fun TrocoScreen(
                 AppCard {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text("MÊS SELECIONADO", color = BodyGray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                            Text(month.atDay(1).format(monthFormat).replaceFirstChar { it.uppercase() },
+                            Text(if (tab == "historico") "MÊS ARQUIVADO" else "MÊS ATUAL",
+                                color = BodyGray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text((if (tab == "historico") historyMonth else month).atDay(1)
+                                    .format(monthFormat).replaceFirstChar { it.uppercase() },
                                 fontSize = 17.sp, fontWeight = FontWeight.Bold)
                         }
-                        TextButton(onClick = {
-                            currentMonth = month.minusMonths(1).toString()
-                            if (tab == "sorteio") tab = "ranking"
-                        }) { Text("‹", fontSize = 29.sp) }
-                        TextButton(onClick = {
-                            currentMonth = month.plusMonths(1).toString()
-                            if (tab == "sorteio") tab = "ranking"
-                        }) { Text("›", fontSize = 29.sp) }
+                        if (tab == "historico") {
+                            TextButton(onClick = {
+                                historyMonthText = historyMonth.minusMonths(1).toString()
+                            }) { Text("‹", fontSize = 29.sp) }
+                            TextButton(
+                                enabled = historyMonth.isBefore(activeMonth.minusMonths(1)),
+                                onClick = { historyMonthText = historyMonth.plusMonths(1).toString() }
+                            ) { Text("›", fontSize = 29.sp) }
+                        } else {
+                            Text("Reinicia a cada mês", color = Green, fontSize = 11.sp)
+                        }
                     }
                 }
             }
             if (storageError != null) item { Banner(storageError, true) }
             when (tab) {
                 "inicio" -> {
-                    item { HomeSummary(ranks, onRanking = { tab = "ranking" }, onRegister = { tab = "registro" }) }
+                    item { HomeSummary(ranks, onRanking = { tab = "ranking" }, onRegister = { tab = "registro" }, onHistory = openHistory) }
                     item { Section("Últimas trocas", "LANÇAMENTOS DO MÊS") }
                     if (exchanges.isEmpty()) item { Empty("Nenhuma troca registrada neste mês.") }
                     items(exchanges.take(5), key = { it.id }) { EntryCard(it) }
@@ -255,7 +288,8 @@ private fun TrocoScreen(
                 }
                 "ranking" -> {
                     item { Section("Ranking mensal", "QUEM TROCOU MAIS") }
-                    item { Banner("Com R$ 150,00 ou mais no mês, a pessoa tem direito a um sorteio.") }
+                    item { Banner("Somente as trocas do mês atual contam. Com R$ 150,00 ou mais, a pessoa tem direito a um sorteio.") }
+                    item { TextButton(onClick = openHistory) { Text("Consultar histórico dos meses anteriores →") } }
                     if (ranks.isEmpty()) item { Empty("Nenhum participante neste mês.") }
                     itemsIndexed(ranks, key = { _, person -> person.key }) { index, person ->
                         RankingCard(index + 1, person, onOpen = {
@@ -285,6 +319,42 @@ private fun TrocoScreen(
                     item { Banner("Todos os presentes têm a mesma chance de serem sorteados.") }
                     if (data.gifts.isEmpty()) item { Empty("Cadastre um presente antes de sortear.") }
                     items(data.gifts, key = { it.id }) { gift -> GiftCard(gift, onEditGift, onDeleteGift) }
+                }
+                "historico" -> {
+                    item { TextButton(onClick = { tab = "ranking" }) { Text("← Voltar ao mês atual") } }
+                    item { Section("Histórico de trocas", "MESES ENCERRADOS") }
+                    item { Banner("Ao começar um novo mês, o total e o ranking voltam a zero. Os registros antigos permanecem disponíveis apenas para consulta.") }
+                    item {
+                        AppCard {
+                            Text("TOTAL HISTÓRICO (MESES ENCERRADOS)", color = BodyGray,
+                                fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(8.dp))
+                            Text(reais(TrocoRules.historicalTotalCents(data, activeMonth)),
+                                color = Green, fontWeight = FontWeight.ExtraBold, fontSize = 28.sp)
+                            Subtext("${pastMonths.size} meses arquivados. Este total não conta para presentes do mês atual.")
+                        }
+                    }
+                    item { Section("Resumo do mês", "HISTÓRICO SELECIONADO") }
+                    item {
+                        AppCard {
+                            Text(reais(oldRanks.sumOf { it.totalCents }), color = Green,
+                                fontSize = 27.sp, fontWeight = FontWeight.ExtraBold)
+                            Subtext("${oldRanks.size} participantes • ${oldRanks.count { it.eligible }} atingiram a meta")
+                        }
+                    }
+                    item { Section("Ranking arquivado", "SOMENTE CONSULTA") }
+                    if (oldRanks.isEmpty()) item { Empty("Nenhuma troca registrada nesse mês.") }
+                    itemsIndexed(oldRanks, key = { _, person -> person.key }) { index, person ->
+                        RankingCard(index + 1, person, onOpen = null)
+                    }
+                    item { Section("Trocas do mês", "REGISTROS ARQUIVADOS") }
+                    if (oldExchanges.isEmpty()) item { Empty("Nenhuma troca nesse mês.") }
+                    items(oldExchanges, key = { it.id }) { EntryCard(it) }
+                    item { Section("Presentes registrados", "RESULTADOS ARQUIVADOS") }
+                    if (oldAwards.isEmpty()) item { Empty("Nenhum sorteio registrado nesse mês.") }
+                    items(oldAwards, key = { it.month + it.personKey }) { award ->
+                        AwardCard(award, onDelivery = { onDelivery(award.month, award.personKey) })
+                    }
                 }
                 "ajustes" -> {
                     item { Section("Backup e dados", "CONFIGURAÇÕES") }
@@ -349,7 +419,7 @@ private fun Empty(text: String) {
 }
 
 @Composable
-private fun HomeSummary(ranks: List<PersonRank>, onRanking: () -> Unit, onRegister: () -> Unit) {
+private fun HomeSummary(ranks: List<PersonRank>, onRanking: () -> Unit, onRegister: () -> Unit, onHistory: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Surface(color = Green, shape = RoundedCornerShape(19.dp)) {
             Column(Modifier.fillMaxWidth().padding(23.dp)) {
@@ -366,6 +436,7 @@ private fun HomeSummary(ranks: List<PersonRank>, onRanking: () -> Unit, onRegist
             Text("Meta: R$ 150,00 ou mais por pessoa no mês", color = Gold, fontSize = 13.sp)
             Spacer(Modifier.height(13.dp))
             Button(onClick = onRanking) { Text("Ver ranking e sorteios →") }
+            TextButton(onClick = onHistory) { Text("Consultar histórico dos meses anteriores →") }
         }
         AppCard {
             Text("QUEM LIDERA?", color = BodyGray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -490,7 +561,7 @@ private fun EntryCard(exchange: Exchange, onDelete: (() -> Unit)? = null) {
 }
 
 @Composable
-private fun RankingCard(position: Int, person: PersonRank, onOpen: () -> Unit) {
+private fun RankingCard(position: Int, person: PersonRank, onOpen: (() -> Unit)?) {
     AppCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Surface(color = if (position == 1) Color(0xFFFFEEC9) else Mint,
@@ -511,12 +582,12 @@ private fun RankingCard(position: Int, person: PersonRank, onOpen: () -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             val status = when {
                 person.award != null -> "Presente sorteado"
-                person.eligible -> "Elegível ao presente"
+                person.eligible -> if (onOpen == null) "Meta atingida neste mês" else "Elegível ao presente"
                 else -> "Faltam ${reais(REWARD_THRESHOLD_CENTS - person.totalCents)}"
             }
             Text(status, modifier = Modifier.weight(1f), fontSize = 12.sp,
                 color = if (person.eligible) Green else BodyGray)
-            if (person.eligible || person.award != null) TextButton(onClick = onOpen) {
+            if (onOpen != null && (person.eligible || person.award != null)) TextButton(onClick = onOpen) {
                 Text(if (person.award != null) "Ver presente →" else "Sortear →")
             }
         }
